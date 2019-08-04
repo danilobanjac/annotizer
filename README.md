@@ -10,5 +10,5 @@ A python serializer which leverages Python3 class annotations, allowing users to
 >>> help(make_serializer)
 ```
 
-Until the official documentation is ready and project if fully packaged, clone the project and use `help()` as shown above for more information.
+Until the official documentation is ready and project if fully packaged, clone the project and use ```Python help()``` as shown above for more information.
 
