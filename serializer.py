@@ -21,7 +21,7 @@ from typing import (
     List,
     Dict,
     Any,
-    Mapping,
+    MutableMapping,
 )
 
 from types import new_class
@@ -33,6 +33,7 @@ from .utils import (
     construct_accessor,
     add_docstring,
     apply_getters,
+    apply_getters_many,
 )
 
 from .docstrings import SERIALIZER, MAKE_SERIALIZER
@@ -74,18 +75,18 @@ class Serializer:
 
         return (
             AnnotationsChainMap(
-                *[
+                *(
                     getattr(base, ANNOTATIONS, {})
                     for base in cls.mro()
                     if base is not object
-                ]
+                )
             ),
             ChainMap(
-                *[
+                *(
                     getattr(base, NAMESPACE, {})
                     for base in cls.mro()
                     if base is not object
-                ]
+                )
             ),
         )
 
@@ -97,30 +98,34 @@ class Serializer:
 
         parsed_fields = {}
         settings = namespace.get("Settings")
-        optional_fields = getattr(settings, "optional", [])
-        disable_accessor = getattr(settings, "disable_accessor", [])
+        optional_fields = getattr(settings, "optional", set())
+        disable_accessor = getattr(settings, "disable_accessor", set())
 
         for field_name, callable_ in fields.items():
-            # Field alias can be changed with this syntax
-            # a: str = 'new_alias_a'
-            # Because of that, check if value is present in the class body
-            # if it is, used that as new alias, otherwise fallback to 'field_name'
+            # Check if new alias is provided -> a: str = 'new_alias_a'
             field_alias = namespace.get(field_name, field_name)
 
-            if field_name in disable_accessor:
-                getter_name = field_name
-            else:
-                getter_name = construct_accessor(field_name)
-
-            if field_name in optional_fields:
-                getter = get_attr(getter_name).send
-            else:
-                getter = attrgetter(getter_name)
+            getter_name = (
+                field_name
+                if field_name in disable_accessor
+                else construct_accessor(field_name)
+            )
+            getter = (
+                get_attr(getter_name)
+                if field_name in optional_fields
+                else attrgetter(getter_name)
+            )
 
             if callable_ is Ellipsis:
                 callable_ = WITHOUT_CALLABLE
             elif isinstance(callable_, Serializer):
-                callable_ = callable_.serialize
+                callable_ = (
+                    apply_getters_many(callable_._fields)
+                    if callable_.many
+                    else apply_getters(callable_._fields)
+                )
+            elif isinstance(callable_, type) and issubclass(callable_, Serializer):
+                callable_ = apply_getters(callable_()._fields)
             elif isinstance(callable_, str):
                 # Field getter can be changed with this syntax
                 # a: 'getter_name' -> Where 'getter_name' is method in the class body
@@ -130,11 +135,11 @@ class Serializer:
                 except KeyError:
                     raise MethodError(
                         f"Missing '{callable_}' method in the serializer body"
-                    )
+                    ) from None
                 except AttributeError:
                     raise MethodError(
                         f"'{namespace[callable_]}' is not a valid getter method"
-                    )
+                    ) from None
             elif not callable(callable_):
                 raise FieldError(
                     f"Invalid callable for the field: {field_name}: {callable_}"
@@ -189,25 +194,23 @@ class Serializer:
 
         return getattr(self, FIELDS)
 
-    def serialize(self, obj: Optional[Type[object]] = None) -> SerializedData:
+    @property
+    def serialize(self) -> SerializedData:
         """Serialize either single object or list of the objects."""
 
         if self._serialized_data:
             return self._serialized_data
 
-        data = self.data or obj
-
-        gen_func = apply_getters(self._fields)
-        apply_getters_ = gen_func.send
+        getter = apply_getters(self._fields)
 
         if self.to_json:
             self._serialized_data = dumps(
-                data, default=apply_getters_, **self.dumps_options
+                self.data, default=getter, **self.dumps_options
             )
         elif self.many:
-            self._serialized_data = list(map(apply_getters_, data))
+            self._serialized_data = list(map(getter, self.data))
         else:
-            self._serialized_data = apply_getters_(data)
+            self._serialized_data = getter(self.data)
 
         return self._serialized_data
 
@@ -216,8 +219,8 @@ class Serializer:
 def make_serializer(
     name: str,
     bases: Optional[Tuple[Type[object], ...]] = None,
-    fields: Optional[Mapping[str, Any]] = None,
-    namespace: Optional[Mapping[str, Any]] = None,
+    fields: Optional[MutableMapping[str, Any]] = None,
+    namespace: Optional[MutableMapping[str, Any]] = None,
     **serializer_settings,
 ):
 
