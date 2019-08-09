@@ -62,7 +62,7 @@ Usage:
         |           +--------------- 'NestedObjSerializer' does not need to be instantiated
         |           |                but in order to provide additional parameters 
         |           |                simply instantiate the serializer instance normally.
-        v           v                For example: 'NestedObjSerializer(to_json=True)'.
+        v           v                For example: 'NestedObjSerializer(many=True)'.
         f: NestedObjSerializer
          
          +-------------------------- With 'accessor' feature nested objects could be serialized as well.
