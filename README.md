@@ -3,8 +3,7 @@
 
 A python serializer which leverages Python3 class annotations, allowing users to serialize their objects in a very practical and fast way.
 
-## Documentation
-### Documentation with examples for the Serializer class.
+## Documentation with examples for the Serializer class.
 
 Serializer `__init__` accepts the following parameters:
 - data    - Is either single object or list of objects
