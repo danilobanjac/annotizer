@@ -6,7 +6,7 @@ A python serializer which leverages Python3 class annotations, allowing users to
 ## Documentation
 ### Documentation with examples for the Serializer class.
 
-Serializer `__init__ accepts the following parameters:
+Serializer `__init__` accepts the following parameters:
 - data    - Is either single object or list of objects
 - fields  - You can serialize only certain fields 
             by providing a list of those fields
@@ -17,7 +17,9 @@ Serializer `__init__ accepts the following parameters:
             other keyword parameters such as 'skipkeys' can be passed
             as well in order to customize the 'dumps' function from the 'json' module)
 
-`Serializer(data=data, many=True, to_json=True, allow_nan=False, skipkeys=True)`
+```Python
+Serializer(data=data, many=True, to_json=True, allow_nan=False, skipkeys=True)
+```
 
 ### Usage
 ```Python
